@@ -217,13 +217,18 @@ int main (int argc, char **argv)
   // Seccion de output
 
   // Calcular el umbral
-  int threshold = calculateThreshold(h_hough, degreeBins * rBins, 1.0);
+  int threshold = calculateThreshold(h_hough, degreeBins * rBins, 2.5);
 
   // Convertir la imagen output a color original
   cv::Mat colorImage = convertToColor(inputImage);
 
+  int xCent = w / 2;
+  int yCent = h / 2;
+
+  printf("threshold: %d\n", threshold);
+
   // Dibujar líneas detectadas
-  drawLines(colorImage, h_hough, threshold, rMax, rScale, degreeBins, radInc, rBins);
+  drawLines(colorImage, h_hough, threshold, rMax, rScale, degreeBins, radInc, rBins, xCent, yCent);
 
   // Guardar imagen con líneas detectadas
   saveImage("output_with_lines.png", colorImage);

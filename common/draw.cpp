@@ -18,7 +18,7 @@ void saveImage(const std::string& filePath, const cv::Mat& image) {
 }
 
 // Función para dibujar líneas
-void drawLines(cv::Mat &image, int *accumulator, int threshold, float rMax, float rScale, int degreeBins, float radInc, int rBins) {
+void drawLines(cv::Mat &image, int *accumulator, int threshold, float rMax, float rScale, int degreeBins, float radInc, int rBins, int xCent, int yCent) {
     for (int rIdx = 0; rIdx < rBins; rIdx++) {
         for (int tIdx = 0; tIdx < degreeBins; tIdx++) {
             if (accumulator[rIdx * degreeBins + tIdx] > threshold) {
@@ -30,10 +30,11 @@ void drawLines(cv::Mat &image, int *accumulator, int threshold, float rMax, floa
                 double a = cos(theta), b = sin(theta);
                 double x0 = a * r, y0 = b * r;
 
-                pt1.x = cvRound(x0 + 1000 * (-b));
-                pt1.y = cvRound(y0 + 1000 * (a));
-                pt2.x = cvRound(x0 - 1000 * (-b));
-                pt2.y = cvRound(y0 - 1000 * (a));
+                pt1.x = cvRound(x0 + 1000 * (-b)) + xCent;
+                pt1.y = cvRound(y0 + 1000 * (a)) + yCent;
+                pt2.x = cvRound(x0 - 1000 * (-b)) + xCent;
+                pt2.y = cvRound(y0 - 1000 * (a)) + yCent;
+
 
                 // Dibujar la línea en color rojo
                 line(image, pt1, pt2, Scalar(0, 0, 255), 1, LINE_AA);
