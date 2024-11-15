@@ -1,25 +1,44 @@
 /*
  ============================================================================
- Author        : G. Barlas
- Version       : 1.0
- Last modified : December 2014
- License       : Released under the GNU GPL 3.0
- Description   :
- To build use  : make
+ Transformada de Hough con Memoria GLOBAL
+ 
+ Para usar: Modificar Makefile a houghGlobal.cu
+ Para ejecutar: ./hough <nombre_imagen>
  ============================================================================
  */
+ 
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
 #include <cuda.h>
 #include <string.h>
 #include "common/pgm.h"
+#include "common/draw.h"
 
 const int degreeInc = 2;
 const int degreeBins = 180 / degreeInc;
 const int rBins = 100;
 const float radInc = degreeInc * M_PI / 180;
 //*****************************************************************
+
+//**********************************************************
+// Función para calcular el umbral
+
+int calculateThreshold(int *accumulator, int size, float factor) {
+    int sum = 0;
+    for (int i = 0; i < size; i++) sum += accumulator[i];
+    float mean = sum / size;
+
+    float variance = 0;
+    for (int i = 0; i < size; i++) variance += pow(accumulator[i] - mean, 2);
+    float stddev = sqrt(variance / size);
+
+    return mean + factor * stddev;
+}
+
+//*********************************************************
+
+
 // The CPU function returns a pointer to the accummulator
 void CPU_HoughTran (unsigned char *pic, int w, int h, int **acc)
 {
@@ -72,7 +91,7 @@ void CPU_HoughTran (unsigned char *pic, int w, int h, int **acc)
 // The accummulator memory needs to be allocated by the host in global memory
 __global__ void GPU_HoughTran (unsigned char *pic, int w, int h, int *acc, float rMax, float rScale, float *d_Cos, float *d_Sin)
 {
-  //TODO calcular: int gloID = ?
+  // Calcular: int gloID
   int gloID = blockIdx.x * blockDim.x + threadIdx.x; 
   if (gloID > w * h) return;      // in case of extra threads in block
 
@@ -104,12 +123,21 @@ __global__ void GPU_HoughTran (unsigned char *pic, int w, int h, int *acc, float
 
 }
 
+
+
 //*****************************************************************
 int main (int argc, char **argv)
 {
   int i;
 
   PGMImage inImg (argv[1]);
+  
+  // Leer imagen usando OpenCV desde draw.cpp
+  cv::Mat inputImage = loadGrayImage(argv[1]);
+  if (inputImage.empty()) {
+      printf("Error al cargar la imagen.\n");
+      return -1;
+  }
 
   int *cpuht;
   int w = inImg.x_dim;
@@ -120,6 +148,14 @@ int main (int argc, char **argv)
 
   cudaMalloc ((void **) &d_Cos, sizeof (float) * degreeBins);
   cudaMalloc ((void **) &d_Sin, sizeof (float) * degreeBins);
+
+  // Definir eventos de inicio y fin
+  cudaEvent_t start, stop;
+  cudaEventCreate(&start);
+  cudaEventCreate(&stop);
+
+  // Inicia la medicion de tiempo
+  cudaEventRecord(start, 0);
 
   // CPU calculation
   CPU_HoughTran(inImg.pixels, w, h, &cpuht);
@@ -163,6 +199,36 @@ int main (int argc, char **argv)
   // get results from device
   cudaMemcpy (h_hough, d_hough, sizeof (int) * degreeBins * rBins, cudaMemcpyDeviceToHost);
 
+  // Termina la medicion de tiempo
+  cudaEventRecord(stop, 0);
+  cudaEventSynchronize(stop);
+
+  // Calcula el tiempo en milisegundos
+  float elapsedTime;
+  cudaEventElapsedTime(&elapsedTime, start, stop);
+  printf("Tiempo de ejecución del kernel: %f ms\n", elapsedTime);
+
+  // Liberar eventos
+  cudaEventDestroy(start);
+  cudaEventDestroy(stop);
+
+  //*************************************************** */
+
+  // Seccion de output
+
+  // Calcular el umbral
+  int threshold = calculateThreshold(h_hough, degreeBins * rBins, 1.0);
+
+  // Convertir la imagen output a color original
+  cv::Mat colorImage = convertToColor(inputImage);
+
+  // Dibujar líneas detectadas
+  drawLines(colorImage, h_hough, threshold, rMax, rScale, degreeBins, radInc, rBins);
+
+  // Guardar imagen con líneas detectadas
+  saveImage("output_with_lines.png", colorImage);
+  printf("Imagen de salida guardada como output_with_lines.png\n");
+
   // compare CPU and GPU results
   for (i = 0; i < degreeBins * rBins; i++)
   {
@@ -170,6 +236,8 @@ int main (int argc, char **argv)
       printf ("Calculation mismatch at : %i %i %i\n", i, cpuht[i], h_hough[i]);
   }
   printf("Done!\n");
+
+  // ********************************************************************************
 
   free(cpuht);
   free(pcCos);
@@ -179,6 +247,5 @@ int main (int argc, char **argv)
   cudaFree(d_hough);
   cudaFree(d_Cos);
   cudaFree(d_Sin);
-
   return 0;
 }
