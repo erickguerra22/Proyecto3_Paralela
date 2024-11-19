@@ -1,8 +1,8 @@
 /*
  ============================================================================
- Transformada de Hough con Memoria GLOBAL
+ Transformada de Hough con Memoria CONSTANTE
  
- Para usar: Modificar Makefile a houghGlobal.cu
+ Para usar: Modificar Makefile a houghConstant.cu
  Para ejecutar: ./hough <nombre_imagen>
  ============================================================================
  */
@@ -19,6 +19,14 @@ const int degreeInc = 2;
 const int degreeBins = 180 / degreeInc;
 const int rBins = 100;
 const float radInc = degreeInc * M_PI / 180;
+//*****************************************************************
+
+//*****************************************************************
+// MEMORIA CONSTANTE
+// Usar memoria constante para la tabla de senos y cosenos
+// inicializarlas en main y pasarlas al device
+__constant__ float d_Cos[degreeBins];
+__constant__ float d_Sin[degreeBins];
 //*****************************************************************
 
 //**********************************************************
@@ -68,12 +76,6 @@ void CPU_HoughTran (unsigned char *pic, int w, int h, int **acc)
 }
 
 //*****************************************************************
-// TODO usar memoria constante para la tabla de senos y cosenos
-// inicializarlo en main y pasarlo al device
-//__constant__ float d_Cos[degreeBins];
-//__constant__ float d_Sin[degreeBins];
-
-//*****************************************************************
 //TODO Kernel memoria compartida
 // __global__ void GPU_HoughTranShared(...)
 // {
@@ -87,7 +89,7 @@ void CPU_HoughTran (unsigned char *pic, int w, int h, int **acc)
 
 // GPU kernel. One thread per image pixel is spawned.
 // The accummulator memory needs to be allocated by the host in global memory
-__global__ void GPU_HoughTran (unsigned char *pic, int w, int h, int *acc, float rMax, float rScale, float *d_Cos, float *d_Sin)
+__global__ void GPU_HoughTran (unsigned char *pic, int w, int h, int *acc, float rMax, float rScale)
 {
   // Calcular: int gloID
   int gloID = blockIdx.x * blockDim.x + threadIdx.x; 
@@ -148,11 +150,13 @@ int main (int argc, char **argv)
   int w = inputImage.cols;
   int h = inputImage.rows;
 
-  float* d_Cos;
-  float* d_Sin;
+  //float* d_Cos;
+  //float* d_Sin;
 
-  cudaMalloc ((void **) &d_Cos, sizeof (float) * degreeBins);
-  cudaMalloc ((void **) &d_Sin, sizeof (float) * degreeBins);
+  // MEMORIA CONSTANTE
+  // YA NO ES NECESARIO RESERVAR MEMORIA EN EL DEVICE PARA:
+  //cudaMalloc ((void **) &d_Cos, sizeof (float) * degreeBins);
+  //cudaMalloc ((void **) &d_Sin, sizeof (float) * degreeBins);
 
   // CPU calculation
   CPU_HoughTran(pixels, w, h, &cpuht);
@@ -171,9 +175,10 @@ int main (int argc, char **argv)
   float rMax = sqrt (1.0 * w * w + 1.0 * h * h) / 2;
   float rScale = 2 * rMax / rBins;
 
-  // TODO eventualmente volver memoria global
-  cudaMemcpy(d_Cos, pcCos, sizeof (float) * degreeBins, cudaMemcpyHostToDevice);
-  cudaMemcpy(d_Sin, pcSin, sizeof (float) * degreeBins, cudaMemcpyHostToDevice);
+  // MEMORIA CONSTANTE
+  // Copiar los valores precalculados de seno y coseno a memoria constante
+  cudaMemcpyToSymbol(d_Cos, pcCos, sizeof(float) * degreeBins);
+  cudaMemcpyToSymbol(d_Sin, pcSin, sizeof(float) * degreeBins);
 
   // setup and copy data from host to device
   unsigned char *d_in, *h_in;
@@ -188,7 +193,7 @@ int main (int argc, char **argv)
   cudaMemcpy (d_in, h_in, sizeof (unsigned char) * w * h, cudaMemcpyHostToDevice);
   cudaMemset (d_hough, 0, sizeof (int) * degreeBins * rBins);
 
-  // Definir eventos de inicio y fin
+    // Definir eventos de inicio y fin
   cudaEvent_t start, stop;
   cudaEventCreate(&start);
   cudaEventCreate(&stop);
@@ -198,8 +203,11 @@ int main (int argc, char **argv)
 
   // execution configuration uses a 1-D grid of 1-D blocks, each made of 256 threads
   //1 thread por pixel
+
+  // MEMORIA CONSTANTE:
+  // Ya no es necesario pasar las referencias de d_Cos y d_Sin como parámetros al kernel
   int blockNum = ceil (w * h / 256);
-  GPU_HoughTran <<< blockNum, 256 >>> (d_in, w, h, d_hough, rMax, rScale, d_Cos, d_Sin);
+  GPU_HoughTran <<< blockNum, 256 >>> (d_in, w, h, d_hough, rMax, rScale);
 
   // get results from device
   cudaMemcpy (h_hough, d_hough, sizeof (int) * degreeBins * rBins, cudaMemcpyDeviceToHost);
@@ -242,6 +250,7 @@ int main (int argc, char **argv)
     if (cpuht[i] != h_hough[i])
       printf ("Calculation mismatch at : %i %i %i\n", i, cpuht[i], h_hough[i]);
   }
+
   // ********************************************************************************
 
   free(cpuht);
@@ -250,7 +259,11 @@ int main (int argc, char **argv)
   free(h_hough);
   cudaFree(d_in);
   cudaFree(d_hough);
-  cudaFree(d_Cos);
-  cudaFree(d_Sin);
+
+  // MEMORIA CONSTANTE:
+  // Ya no es necesario liberar d_Cos y d_Sin
+
+  //cudaFree(d_Cos);
+  //cudaFree(d_Sin);
   return 0;
 }

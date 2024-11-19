@@ -1,7 +1,7 @@
 #include "draw.h"
 
-cv::Mat loadGrayImage(const char* filePath) {
-    return imread(filePath, IMREAD_GRAYSCALE);
+cv::Mat loadImage(const char* filePath) {
+    return imread(filePath);
 }
 
 cv::Mat convertToColor(const cv::Mat& grayImage) {
@@ -16,6 +16,7 @@ void saveImage(const std::string& filePath, const cv::Mat& image) {
 
 void drawLines(cv::Mat &image, int *accumulator, int threshold, float rMax, float rScale, 
               int degreeBins, float radInc, int rBins, int xCent, int yCent) {
+
     for (int rIdx = 0; rIdx < rBins; rIdx++) {
         for (int tIdx = 0; tIdx < degreeBins; tIdx++) {
             // Solo dibuja líneas que superen el threshold

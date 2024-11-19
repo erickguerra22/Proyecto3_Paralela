@@ -8,7 +8,7 @@ using namespace cv;
 using namespace std;
 
 // Function to load image in grayscale
-cv::Mat loadGrayImage(const char* filePath);
+cv::Mat loadImage(const char* filePath);
 
 // Function to convert grayscale image to color
 cv::Mat convertToColor(const cv::Mat& grayImage);
