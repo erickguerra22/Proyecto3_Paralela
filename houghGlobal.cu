@@ -15,9 +15,9 @@
 #include "common/pgm.h"
 #include "common/draw.h"
 
-const int degreeInc = 2;
+const int degreeInc = 1;
 const int degreeBins = 180 / degreeInc;
-const int rBins = 100;
+const int rBins = 200;
 const float radInc = degreeInc * M_PI / 180;
 //*****************************************************************
 
@@ -25,15 +25,13 @@ const float radInc = degreeInc * M_PI / 180;
 // Función para calcular el umbral
 
 int calculateThreshold(int *accumulator, int size, float factor) {
-    int sum = 0;
-    for (int i = 0; i < size; i++) sum += accumulator[i];
-    float mean = sum / size;
-
-    float variance = 0;
-    for (int i = 0; i < size; i++) variance += pow(accumulator[i] - mean, 2);
-    float stddev = sqrt(variance / size);
-
-    return mean + factor * stddev;
+    
+    int maxVal = 0;
+    for (int i = 0; i < size; i++) {
+        if (accumulator[i] > maxVal) maxVal = accumulator[i];
+    }
+    
+    return maxVal * 0.3;
 }
 
 //*********************************************************
@@ -139,6 +137,13 @@ int main (int argc, char **argv)
       return -1;
   }
 
+  cv::Mat processedImage;
+  GaussianBlur(inputImage, inputImage, Size(3,3), 0);
+  Canny(inputImage, processedImage, 30, 100);
+  dilate(processedImage, processedImage, Mat(), Point(-1,-1), 1);
+
+  unsigned char* pixels = processedImage.data;
+
   int *cpuht;
   int w = inImg.x_dim;
   int h = inImg.y_dim;
@@ -182,7 +187,7 @@ int main (int argc, char **argv)
   unsigned char *d_in, *h_in;
   int *d_hough, *h_hough;
 
-  h_in = inImg.pixels; // h_in contiene los pixeles de la imagen
+  h_in = pixels; // h_in contiene los pixeles de la imagen
 
   h_hough = (int *) malloc (degreeBins * rBins * sizeof (int));
 
