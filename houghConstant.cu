@@ -3,7 +3,7 @@
  Transformada de Hough con Memoria CONSTANTE
  
  Para usar: Modificar Makefile a houghConstant.cu
- Para ejecutar: ./hough <nombre_imagen>
+ Para ejecutar: ./houghConstant <nombre_imagen>
  ============================================================================
  */
  
@@ -81,15 +81,10 @@ void CPU_HoughTran (unsigned char *pic, int w, int h, int **acc)
 // {
 //   //TODO
 // }
-//TODO Kernel memoria Constante
-// __global__ void GPU_HoughTranConst(...)
-// {
-//   //TODO
-// }
 
 // GPU kernel. One thread per image pixel is spawned.
 // The accummulator memory needs to be allocated by the host in global memory
-__global__ void GPU_HoughTran (unsigned char *pic, int w, int h, int *acc, float rMax, float rScale)
+__global__ void GPU_HoughTranConst (unsigned char *pic, int w, int h, int *acc, float rMax, float rScale)
 {
   // Calcular: int gloID
   int gloID = blockIdx.x * blockDim.x + threadIdx.x; 
@@ -207,7 +202,7 @@ int main (int argc, char **argv)
   // MEMORIA CONSTANTE:
   // Ya no es necesario pasar las referencias de d_Cos y d_Sin como parámetros al kernel
   int blockNum = ceil (w * h / 256);
-  GPU_HoughTran <<< blockNum, 256 >>> (d_in, w, h, d_hough, rMax, rScale);
+  GPU_HoughTranConst <<< blockNum, 256 >>> (d_in, w, h, d_hough, rMax, rScale);
 
   // get results from device
   cudaMemcpy (h_hough, d_hough, sizeof (int) * degreeBins * rBins, cudaMemcpyDeviceToHost);
