@@ -30,10 +30,10 @@ void drawLines(cv::Mat &image, int *accumulator, int threshold, float rMax, floa
                 double x0 = a * r, y0 = b * r;
                 
                 // Extender la línea hasta los bordes de la imagen
-                pt1.x = cvRound(x0 + 1000 * (-b)) + xCent;
-                pt1.y = cvRound(y0 + 1000 * (a)) + yCent;
-                pt2.x = cvRound(x0 - 1000 * (-b)) + xCent;
-                pt2.y = cvRound(y0 - 1000 * (a)) + yCent;
+                pt1.x = cvRound(x0 + 1000 * (b)) + xCent;
+                pt1.y = cvRound(-y0 + 1000 * (a)) + yCent;
+                pt2.x = cvRound(x0 - 1000 * (b)) + xCent;
+                pt2.y = cvRound(-y0 - 1000 * (a)) + yCent;
                 
                 // Dibujar línea en rojo
                 line(image, pt1, pt2, Scalar(0, 0, 255), 1, LINE_AA);

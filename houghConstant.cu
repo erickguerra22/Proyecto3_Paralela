@@ -225,7 +225,7 @@ int main (int argc, char **argv)
   // Seccion de output
 
   // Calcular el umbral
-  int threshold = calculateThreshold(h_hough, degreeBins * rBins, 0.4);
+  int threshold = calculateThreshold(h_hough, degreeBins * rBins, 0.46);
 
   int xCent = w / 2;
   int yCent = h / 2;
